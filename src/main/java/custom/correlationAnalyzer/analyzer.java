@@ -9,8 +9,9 @@ import java.util.concurrent.Executors;
 
 
 public class analyzer implements Runnable {
-    public static List<Object> matchedcorrelationIdList = new ArrayList();;
+    public static List<Object> nonmatchedcorrelationIdList = new ArrayList();;
     private Object correlationIdentifier;
+    public static List correlationIdList = new ArrayList();//To store the correlation ids in correlation.log file
 
     public analyzer(Object Id) {
         this.correlationIdentifier = Id;
@@ -41,7 +42,7 @@ public class analyzer implements Runnable {
             FileInputStream correlationLog = new FileInputStream("/Users/selakapiumal/Desktop/correlatioAnalyzer/correlation.log");
             BufferedReader br = new BufferedReader(new InputStreamReader(correlationLog));
             String strLine;
-            List correlationIdList = new ArrayList();//To store the correlation ids in correlation.log file
+
 
             /* read log line by line */
             while ((strLine = br.readLine()) != null)   {
@@ -67,7 +68,6 @@ public class analyzer implements Runnable {
             //======================================================================================================
 
             //check the non matching ids in carbon log and save it in nonmatchedcorrelationIds.txt==============================================================
-            List matchedcorrelationIdList = new ArrayList();//To store the non matching correlation ids in wso2carbon log file in GW
 
 
             ExecutorService executor = Executors.newFixedThreadPool(100);
@@ -78,14 +78,10 @@ public class analyzer implements Runnable {
 
             }
 
-            //====================================================================================================
-
-            //Save non matching ids ===============================================================================
-            FileWriter myWriter1 = new FileWriter("/Users/selakapiumal/Desktop/correlatioAnalyzer/nonmatchedcorrelationIds.txt");
-            myWriter1.write(matchedcorrelationIdList.toString());
-            myWriter1.close();
 
             //====================================================================================================
+
+
         } catch (Exception e) {
             System.err.println("Error: " + e.getMessage());
         }
@@ -93,29 +89,49 @@ public class analyzer implements Runnable {
 
     @Override
     public void run() {
-        System.out.println("inside run" + correlationIdentifier.toString());
+        //System.out.println("inside run" + correlationIdentifier.toString());
         String grepCommand = "grep " + correlationIdentifier.toString() +" /Users/selakapiumal/Desktop/correlatioAnalyzer/wso2carbon.log";
         Process proc = null;
+
+
         try {
             proc = Runtime.getRuntime().exec(grepCommand);
-        } catch (IOException e) {
-            e.printStackTrace();
-        }
-        BufferedReader reader =
-                new BufferedReader(new InputStreamReader(proc.getInputStream()));
-        String line = "";
-        try {
+            BufferedReader reader =
+                    new BufferedReader(new InputStreamReader(proc.getInputStream()));
+            String line = "";
             if ((line = reader.readLine()) != null){
                 System.out.print("existing id" + "\n");
 
             }else {
-                matchedcorrelationIdList.add(correlationIdentifier.toString());
+                nonmatchedcorrelationIdList.add(correlationIdentifier.toString());
                 System.out.print("missing id" + correlationIdentifier.toString()+"\n");
             }
         } catch (IOException e) {
             e.printStackTrace();
         }
-        //System.out.println("==================================" +matchedcorrelationIdList);
+
+        if (correlationIdentifier == correlationIdList.get(correlationIdList.size() - 1)){
+            System.out.println("Non matching ids:  " +nonmatchedcorrelationIdList);
+            //Save non matching ids ===============================================================================
+
+            try {
+                FileWriter myWriter1 = new FileWriter("/Users/selakapiumal/Desktop/correlatioAnalyzer/nonmatchedcorrelationIds.txt");
+                myWriter1.write(nonmatchedcorrelationIdList.toString());
+                myWriter1.close();
+            } catch (IOException e) {
+                e.printStackTrace();
+            }
+
+
+            //====================================================================================================
+
+        }
+        try {
+            proc.waitFor();
+        } catch (InterruptedException e) {
+            e.printStackTrace();
+        }
+
 
     }
 }
